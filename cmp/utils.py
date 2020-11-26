@@ -1,4 +1,4 @@
-from pycompiler import Production, Sentence, Symbol, EOF, Epsilon
+from cmp.pycompiler import Production, Sentence, Symbol, EOF, Epsilon
 
 class ContainerSet:
     def __init__(self, *values, contains_epsilon=False):
@@ -37,6 +37,14 @@ class ContainerSet:
             if item == match:
                 return item
         return None
+    
+    @staticmethod
+    def getStreamlitObject(firsts):
+        return dict([(
+        f'{key}',
+        '{ ' + ', '.join([str(value) for value in firsts[key].set]) + (', epsilon }' if firsts[key].contains_epsilon else ' }')) 
+        for key in firsts if len(firsts[key].set) != 0
+        ]) 
 
     def __len__(self):
         return len(self.set) + int(self.contains_epsilon)
@@ -178,7 +186,7 @@ class TrieNode:
             for node in child.post_order():
                 yield node
         yield self    
-        
+
 class Trie:    
     def __init__(self):
         self._root = TrieNode('^', None)
