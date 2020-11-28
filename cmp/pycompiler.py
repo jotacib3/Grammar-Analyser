@@ -110,6 +110,7 @@ class EOF(Terminal):
     def __init__(self, Grammar):
         super().__init__('$', Grammar)
 
+
 class Sentence(object):
 
     def __init__(self, *args):
@@ -298,11 +299,10 @@ class Grammar():
 
             if self.startSymbol is None:
                 self.startSymbol = term
-                self.nonTerminals.insert(0, term)
             else:
                 raise Exception("Cannot define more than one start symbol.")
-        else:
-            self.nonTerminals.append(term)
+
+        self.nonTerminals.append(term)
         self.symbDict[name] = term
         return term
 
@@ -320,9 +320,8 @@ class Grammar():
 
         assert type(production) == self.pType, "The Productions most be of only 1 type."
 
-        if production not in production.Left.productions:
-            production.Left.productions.append(production)
-            self.Productions.append(production)
+        production.Left.productions.append(production)
+        self.Productions.append(production)
 
 
     def Terminal(self, name):
@@ -349,24 +348,19 @@ class Grammar():
 
         ans = 'Non-Terminals:\n\t'
 
-        nonterminals = ', '.join(['%s'] * len(self.nonTerminals)) + '\n'
+        nonterminals = mul * (len(self.nonTerminals)-1) + '%s\n'
 
         ans += nonterminals % tuple(self.nonTerminals)
 
         ans += 'Terminals:\n\t'
 
-        # terminals = mul * (len(self.terminals)-1) + '%s\n'
-        terminals = ', '.join(['%s'] * len(self.terminals)) + '\n'
+        terminals = mul * (len(self.terminals)-1) + '%s\n'
 
         ans += terminals % tuple(self.terminals)
 
         ans += 'Productions:\n\t'
 
         ans += str(self.Productions)
-
-        ans += '\nStart Symbol:\n\t'
-
-        ans += str(self.startSymbol)
 
         return ans
 
@@ -407,8 +401,8 @@ class Grammar():
         for term in data['Terminals']:
             dic[term] = G.Terminal(term)
 
-        for i, noTerm in enumerate(data['NonTerminals']):
-            dic[noTerm] = G.NonTerminal(noTerm, not i)
+        for noTerm in data['NonTerminals']:
+            dic[noTerm] = G.NonTerminal(noTerm)
 
         for p in data['Productions']:
             head = p['Head']

@@ -3,7 +3,7 @@ import streamlit as st
 
 from cmp.grammarbuilder import GrammarBuilder
 from cmp.utils import ContainerSet
-from cmp.parsers.firsts_follows import compute_firsts, compute_follows
+from cmp.parsers import *
 
 import os
 
@@ -23,7 +23,7 @@ grammar_txt=st.text_area("Gramática","")
 st.subheader("Ingrese las cadenas que desea reconocer")
 words_txt=st.text_area("Cadenas","")
 
-if st.button("Analizar"): 
+if st.button("Analizar"):
     if(grammar_txt!=""):
         G = GrammarBuilder.build_grammar(grammar_txt)
         if G is not None:
@@ -36,14 +36,67 @@ if st.button("Analizar"):
 
             st.subheader("Conjunto Follows")
             st.write(ContainerSet.getStreamlitObject(follows))
+            
+             # Eliminating indirect left recursion
+            gb = GrammarBuilder(G)
+            original = f'{gb}'
+            gb.eliminate_LR()
+            GILR = GrammarBuilder.build_grammar(f'{gb}') if f'{gb}' != original else original
+            st.write("Gramática sin recursión izquierda indirecta")
+            st.text(GILR)            
 
-            grammar_clone = G.copy()
-            is_not_null, acepted_symbols = GrammarBuilder.is_not_null(grammar_clone)
-            GrammarBuilder.remove_bad_items(grammar_clone, keep_symbols=acepted_symbols)
-            GrammarBuilder.remove_left_recursion(grammar_clone)
-            GrammarBuilder.factorize_grammar(grammar_clone)
-            st.write("Gramática sin prefijos comunes, recursión izquierda inmediata ni producciones inalcanzables")
-            st.write(grammar_clone)            
+            # Eliminating direct left recursion
+            gb = GrammarBuilder(G)
+            original = f'{gb}'
+            gb.eliminate_DLR()
+            GDLR = GrammarBuilder.build_grammar(f'{gb}') if f'{gb}' != original else original                            
+            st.write("Gramática sin recursión izquierda directa")
+            st.text(GDLR)            
+
+            # Eliminating common prefixes
+            gb = GrammarBuilder(G)
+            original = f'{gb}'            
+            gb.eliminate_common_prefixes()
+            GCP = GrammarBuilder.build_grammar(f'{gb}') if f'{gb}' != original else original
+            st.write("Gramática sin prefijos comunes")
+            st.text(GCP)
+
+            # Eliminating unreachable productions
+            gb = GrammarBuilder(G)
+            original = f'{gb}'            
+            gb.eliminate_unreachable_prod()
+            GURP =  GrammarBuilder.build_grammar(f'{gb}') if f'{gb}' != original else original
+            st.write("Gramática sin producciones inalcanzables")
+            st.text(GURP)
+
+            # Eliminating unfinished productions
+            gb = GrammarBuilder(G)
+            original = f'{gb}'            
+            gb.eliminate_unfinished_prod()
+            GUFP = GrammarBuilder.build_grammar(f'{gb}') if f'{gb}' != original else original
+            st.write("Gramática sin producciones sin terminar")
+            st.text(GUFP)
+
+            # TODO: Falta aarreglar simbolo inicial que no s epone bien al aplicar estos cambios, ni      
+
+            st.subheader("Análisis LL(1)")   
+            conflict, dic = build_LL1_table(G, firsts, follows)
+
+            if conflict is not None:
+                st.warning("La gramática no es LL(1)")
+                st.write("En la posición " + f'{conflict}' + " hay conflicto")
+            
+            # # else:
+            # #     st.success("La gramática es LL(1)")
+            #     data={}              
+            #     for t in dic:  
+            #         aux={}          
+            #         for n in dic:                        
+            #             if n[1]==t[1]:
+            #                 aux[n[0]]=dic[n]                    
+            #         data[t[1]]=aux
+            #     st.write("Tabla LL(1)")
+            #     st.table(data)
 
     else:
         st.write("No se ha insertado gramática para analizar")
