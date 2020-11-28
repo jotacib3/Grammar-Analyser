@@ -39,11 +39,11 @@ class ContainerSet:
         return None
     
     @staticmethod
-    def getStreamlitObject(firsts):
+    def getStreamlitObject(setFirstFollow):
         return dict([(
         f'{key}',
-        '{ ' + ', '.join([str(value) for value in firsts[key].set]) + (', epsilon }' if firsts[key].contains_epsilon else ' }')) 
-        for key in firsts if len(firsts[key].set) != 0
+        '{ ' + ', '.join([str(value) for value in setFirstFollow[key].set]) + (', epsilon }' if setFirstFollow[key].contains_epsilon else ' }')) 
+        for key in setFirstFollow if len(setFirstFollow[key].set) != 0
         ]) 
 
     def __len__(self):
