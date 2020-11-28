@@ -188,17 +188,20 @@ class State:
 
         return G
 
-    def _repr_svg_(self):
-        try:
-            return self.graph().create_svg().decode('utf8')
-        except:
-            pass
+    # def _repr_svg_(self):
+    #     try:
+    #         return self.graph().create_svg().decode('utf8')
+    #     except:
+    #         pass
 
-    def write_to(self, fname):
-        return self.graph().write_svg(fname)
+    # def write_to(self, fname):
+    #     return self.graph().write_svg(fname)
 
 def multiline_formatter(state):
     return '\n'.join(str(item) for item in state)
+
+def multiline_formatter_lr0(state):
+    return '\n'.join(str(item) for item in state.state)
 
 def lr0_formatter(state):
     try:
