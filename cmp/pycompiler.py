@@ -1,7 +1,7 @@
 import json
 
 class Symbol(object):
-
+    
     def __init__(self, name, grammar):
         self.Name = name
         self.Grammar = grammar
@@ -32,13 +32,30 @@ class Symbol(object):
     def __len__(self):
         return 1
 
-class NonTerminal(Symbol):
 
+class Terminal(Symbol):
+
+    def __init__(self, name, grammar):
+        super().__init__(name, grammar)
+    
+    @property
+    def IsTerminal(self):
+        return True
+    
+    @property
+    def IsNonTerminal(self):
+        return False
+    
+    @property
+    def IsEpsilon(self):
+        return False
+
+
+class NonTerminal(Symbol):
 
     def __init__(self, name, grammar):
         super().__init__(name, grammar)
         self.productions = []
-
 
     def __imod__(self, other):
 
@@ -48,16 +65,12 @@ class NonTerminal(Symbol):
             return self
 
         if isinstance(other, tuple):
-            assert len(other) > 1
+            assert len(other) == 2, "Tiene que ser una Tupla de 2 elementos (sentence, attribute)"
 
-            if len(other) == 2:
-                other += (None,) * len(other[0])
-
-            assert len(other) == len(other[0]) + 2, "Debe definirse una, y solo una, regla por cada símbolo de la producción"
-            # assert len(other) == 2, "Tiene que ser una Tupla de 2 elementos (sentence, attribute)"
-
-            if isinstance(other[0], Symbol) or isinstance(other[0], Sentence):
-                p = AttributeProduction(self, other[0], other[1:])
+            if isinstance(other[0], Symbol):
+                p = AttributeProduction(self, Sentence(other[0]), other[1])
+            elif isinstance(other[0], Sentence):
+                p = AttributeProduction(self, other[0], other[1])
             else:
                 raise Exception("")
 
@@ -78,35 +91,19 @@ class NonTerminal(Symbol):
             return self
 
         raise TypeError(other)
-
+    
     @property
     def IsTerminal(self):
         return False
-
+    
     @property
     def IsNonTerminal(self):
         return True
-
+    
     @property
     def IsEpsilon(self):
         return False
 
-class Terminal(Symbol):
-
-    def __init__(self, name, grammar):
-        super().__init__(name, grammar)
-
-    @property
-    def IsTerminal(self):
-        return True
-
-    @property
-    def IsNonTerminal(self):
-        return False
-
-    @property
-    def IsEpsilon(self):
-        return False
 
 class EOF(Terminal):
 
@@ -162,6 +159,38 @@ class Sentence(object):
     def IsEpsilon(self):
         return False
 
+class Epsilon(Terminal, Sentence):
+
+    def __init__(self, grammar):
+        super().__init__('epsilon', grammar)
+
+
+    def __str__(self):
+        return "epsilon"
+
+    def __repr__(self):
+        return 'epsilon'
+
+    def __iter__(self):
+        yield self
+    
+    def __len__(self):
+        return 0
+    
+    def __add__(self, other):
+        return other
+    
+    def __eq__(self, other):
+        return isinstance(other, (Epsilon,))
+    
+    def __hash__(self):
+        return hash("")
+
+    @property
+    def IsEpsilon(self):
+        return True
+
+
 class SentenceList(object):
 
     def __init__(self, *args):
@@ -180,41 +209,10 @@ class SentenceList(object):
         if isinstance(other, Sentence):
             self.Add(other)
             return self
-
+        
         if isinstance(other, Symbol):
             return self | Sentence(other)
 
-
-class Epsilon(Terminal, Sentence):
-
-    def __init__(self, grammar):
-        super().__init__('epsilon', grammar)
-
-
-    def __str__(self):
-        return "e"
-
-    def __repr__(self):
-        return 'epsilon'
-
-    def __iter__(self):
-        yield from ()
-
-    def __len__(self):
-        return 0
-
-    def __add__(self, other):
-        return other
-
-    def __eq__(self, other):
-        return isinstance(other, (Epsilon,))
-
-    def __hash__(self):
-        return hash("")
-
-    @property
-    def IsEpsilon(self):
-        return True
 
 class Production(object):
 
@@ -228,21 +226,23 @@ class Production(object):
         return '%s := %s' % (self.Left, self.Right)
 
     def __repr__(self):
-        return '%s -> %s' % (self.Left, self.Right)
-
-    def __iter__(self):
-        yield self.Left
-        yield self.Right
-
-    def __eq__(self, other):
-        return isinstance(other, Production) and self.Left == other.Left and self.Right == other.Right
+        return '%s -> %s \n\t' % (self.Left, self.Right)
 
     def __hash__(self):
         return hash((self.Left, self.Right))
 
+    def __iter__(self):
+        yield self.Left
+        yield self.Right
+        
+    def __eq__(self, other):
+        return isinstance(other, Production) and self.Left == other.Left and self.Right == other.Right
+
+
     @property
     def IsEpsilon(self):
         return self.Right.IsEpsilon
+
 
 class AttributeProduction(Production):
 
@@ -267,8 +267,7 @@ class AttributeProduction(Production):
     @property
     def IsEpsilon(self):
         return self.Right.IsEpsilon
-
-    # sintetizar en ingles??????, pending aggrement
+   
     def syntetice(self):
         pass
 
@@ -299,10 +298,11 @@ class Grammar():
 
             if self.startSymbol is None:
                 self.startSymbol = term
+                self.nonTerminals.insert(0, term)
             else:
                 raise Exception("Cannot define more than one start symbol.")
-
-        self.nonTerminals.append(term)
+        else:
+            self.nonTerminals.append(term)
         self.symbDict[name] = term
         return term
 
@@ -320,8 +320,9 @@ class Grammar():
 
         assert type(production) == self.pType, "The Productions most be of only 1 type."
 
-        production.Left.productions.append(production)
-        self.Productions.append(production)
+        if production not in production.Left.productions:
+            production.Left.productions.append(production)
+            self.Productions.append(production)
 
 
     def Terminal(self, name):
@@ -348,19 +349,24 @@ class Grammar():
 
         ans = 'Non-Terminals:\n\t'
 
-        nonterminals = mul * (len(self.nonTerminals)-1) + '%s\n'
+        nonterminals = ', '.join(['%s'] * len(self.nonTerminals)) + '\n'
 
         ans += nonterminals % tuple(self.nonTerminals)
 
         ans += 'Terminals:\n\t'
 
-        terminals = mul * (len(self.terminals)-1) + '%s\n'
+        # terminals = mul * (len(self.terminals)-1) + '%s\n'
+        terminals = ', '.join(['%s'] * len(self.terminals)) + '\n'
 
         ans += terminals % tuple(self.terminals)
 
         ans += 'Productions:\n\t'
 
         ans += str(self.Productions)
+
+        ans += '\nStart Symbol:\n\t'
+
+        ans += str(self.startSymbol)
 
         return ans
 
@@ -401,12 +407,18 @@ class Grammar():
         for term in data['Terminals']:
             dic[term] = G.Terminal(term)
 
-        for noTerm in data['NonTerminals']:
-            dic[noTerm] = G.NonTerminal(noTerm)
+        for i, noTerm in enumerate(data['NonTerminals']):
+            dic[noTerm] = G.NonTerminal(noTerm, not i)
 
         for p in data['Productions']:
             head = p['Head']
-            dic[head] %= Sentence(*[dic[term] for term in p['Body']])
+            
+            # dic[head] %= Sentence(*[dic[term] for term in p['Body']])
+
+            if 'epsilon' not in p['Body']:
+                dic[head] %= Sentence(*[dic[term] for term in p['Body'] if term != 'epsilon'])            
+            else:
+                dic[head] %= G.Epsilon
 
         return G
 
