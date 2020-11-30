@@ -8,6 +8,7 @@ class ShiftReduceParser:
         self.verbose = verbose
         self.action = {}
         self.goto = {}
+        self.derivations = []
         self._build_parsing_table()
     
     def _build_parsing_table(self):
@@ -21,11 +22,11 @@ class ShiftReduceParser:
         while True:
             state = stack[-1]
             lookahead = w[cursor]
-            if self.verbose: print(stack, w[cursor:])            
+            if self.verbose: print(stack, w[cursor:])      
             
             try:
-                action, tag = self.action[state, lookahead]
-               
+                action, tag = self.action[state, lookahead][0]
+                self.derivations.append((stack.copy(), w[cursor:], action, tag))              
                 if action == self.SHIFT:
                     cursor += 1
                     stack.append(tag)
@@ -34,10 +35,11 @@ class ShiftReduceParser:
                     if not tag.Right.IsEpsilon:
                         for _ in tag.Right:                        
                             stack.pop()
-                    stack.append(self.goto[stack[-1], tag.Left])
+                    stack.append(self.goto[stack[-1], tag.Left][0])
                     output.append(tag)
                 
                 elif action == self.OK:
+                    output.reverse()
                     return output
                 
                 else:
@@ -91,7 +93,10 @@ class Item:
                 s += "."
         else:
             s += "."
+        # if str(self.lookaheads) != '()':
         s += ", " + str(self.lookaheads)
+        # else: 
+        #     s+='\n'
         return s
 
     def __repr__(self):

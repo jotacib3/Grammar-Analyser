@@ -1,7 +1,8 @@
-try:
-    import pydot
-except:
-    pass
+import graphviz as graphviz
+# try:
+#     import pydot
+# except:
+#     pass
 
 class State:
     def __init__(self, state, final=False, formatter=lambda x: str(x), shape='circle'):
@@ -165,37 +166,29 @@ class State:
         for node in self.epsilon_transitions:
             yield from node._visit(visited)
 
-    def graph(self):
-        G = pydot.Dot(rankdir='LR', margin=0.1)
-        G.add_node(pydot.Node('start', shape='plaintext', label='', width=0, height=0))
+    def graph(self, printIdx = True):
+        G = graphviz.Digraph()
+        G.node('start', '',{ "shape": "plaintext", "width": "0", "height": "0"})
 
         visited = set()
         def visit(start):
             ids = id(start)
             if ids not in visited:
                 visited.add(ids)
-                G.add_node(pydot.Node(ids, label=start.name, shape=self.shape, style='bold' if start.final else ''))
+                label = f'{start.idx}\n{start.name}' if printIdx else f'{start.name}'
+                G.node(str(ids), label, { 'shape': 'circle', 'style': 'bold' if start.final else '' }) 
                 for tran, destinations in start.transitions.items():
                     for end in destinations:
-                        visit(end)
-                        G.add_edge(pydot.Edge(ids, id(end), label=tran, labeldistance=2))
+                        visit(end)                        
+                        G.edge(str(ids), str(id(end)), tran, { 'labeldistance': '2'})
                 for end in start.epsilon_transitions:
                     visit(end)
-                    G.add_edge(pydot.Edge(ids, id(end), label='ε', labeldistance=2))
+                    G.edge(str(ids), str(id(end)),  'ε', { 'labeldistance': '2'})
 
         visit(self)
-        G.add_edge(pydot.Edge('start', id(self), label='', style='dashed'))
+        G.edge('start', str(id(self)), '', { 'style': 'dashed'})
 
         return G
-
-    # def _repr_svg_(self):
-    #     try:
-    #         return self.graph().create_svg().decode('utf8')
-    #     except:
-    #         pass
-
-    # def write_to(self, fname):
-    #     return self.graph().write_svg(fname)
 
 def multiline_formatter(state):
     return '\n'.join(str(item) for item in state)

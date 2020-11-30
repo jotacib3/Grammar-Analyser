@@ -1,6 +1,7 @@
 
 from queue import Queue
-from cmp.pycompiler import Grammar, NonTerminal, Terminal, Sentence
+from cmp.pycompiler import Grammar, NonTerminal, Terminal, Sentence, Epsilon
+from cmp.automata import State
 from cmp.utils import Trie
 
 import json
@@ -63,6 +64,10 @@ class GrammarBuilder:
         except:
             return None
 
+    @staticmethod
+    def tokenizer(G: Grammar, text):
+        return [G[word] for word in text.split()] + [G.EOF]
+        
     def __init__(self, G):
         self._G = G
         self.startSymbol = f'{G.startSymbol}'
@@ -324,7 +329,6 @@ class GrammarBuilder:
 
         unreachable_symbols = [v for v in unreachable_symbols]
 
-        print(unreachable_symbols)
         for head in clone.Productions:
             if head in unreachable_symbols:
                 self.Productions.pop(head)
@@ -372,47 +376,108 @@ class GrammarBuilder:
         self.eliminate_unreachable_prod()
         self.eliminate_unfinished_prod()
 
-    # def expand_sentence(self, head, sentence, nt_info, production):
-    #     for symb in sentence:
-    #         finish, pos, word = nt_info[symb]
-    #         if symb in self.nonTerminals:
-                
-    #             if not finish:
-    #                 finish, beta  = self.expand_nonTerminal(symb, nt_info)
-                
-    #             if not finish:
-    #                 return False
-    #             else:
-    #                 nt_info[head] = finish, pos, f'{word} {beta}'.strip()
-    #         else:
-    #             nt_info[head] = finish, pos, f'{word} {symbol}'.strip()
-                
-    #     return True 
+    epsilon = 'ε'
+    
+    @staticmethod
+    def build_automaton(G: Grammar):
+        """
+        Build the finite automaton for
+        a regular grammar
+        """
+        states = { nonTerminal: State(nonTerminal.Name) for nonTerminal in G.nonTerminals }
+        final_state = State('F\'', True)
 
-    # def expand_nonTerminal(self, nt, nt_info):
-    #     finish, start, word = nt_info[nt]
+        start_in_right = False
+        epsilon_production = False
 
-    #     if finish and self._useProd:
-    #         return True, word
+        for nonTerminal in G.nonTerminals:
+            for production in nonTerminal.productions:
+                right = production.Right
 
-    #     for i in range(start, len(nt.productions)):
-    #         p = nt.productions[i]
-    #         nt_info[nt] = (False, i + 1, word) 
-    #         if self.expand_sentence(p.Left, p.Right, nt_info):
-    #             _, _, word = nt_info[nt]
-    #             nt_info[nt] = (True, i + 1, word)
-    #             return True, word
+                # Start Symbol produces epsilon
+                if isinstance(right, Epsilon) and nonTerminal == G.startSymbol:
+                    epsilon_production = True
+                    continue
+                    
+                start_in_right |= G.startSymbol in right
+                n = len(right)
 
-    #     return False, None
+                # X --> w
+                if n == 1 and isinstance(right[0], Terminal):
+                    states[nonTerminal].add_transition(right[0].Name, final_state)
+                    continue
 
-    # def get_conflicted_word(self, production):
-    #     graph = self._build_graph()
-        
-    #     nt_expansion = { nt:(False, 0, '') for nt in self.nonTerminals }
-    #     word = ''
-    #     for symbol in production.Right:
-    #         if symbol in self._G.nonTerminals:
-    #             word += self.expand_nonTerminal(nt_expansion)
-    #         else:
-    #             word = f' {symbol}'
-    #             word = word.strip()
+                # X --> w Y
+                if n == 2 and isinstance(right[0], Terminal) and isinstance(right[1], NonTerminal):
+                    states[nonTerminal].add_transition(right[0].Name, states[right[1]])
+                    continue
+
+                return states[G.startSymbol], False
+
+        states[G.startSymbol].final = epsilon_production
+        return states[G.startSymbol], not (start_in_right and epsilon_production)
+
+    @staticmethod 
+    def regex_union(regex, other):
+        if regex is None:
+            return other
+
+        if other is None:
+            return regex
+
+        if regex == other:
+            return regex
+
+        return f'({regex}|{other})'
+
+    @staticmethod 
+    def regex_concat(regex, other):
+        if regex is None or other is None:
+            return None
+
+        if regex is GrammarBuilder.epsilon:
+            return other
+
+        if other is GrammarBuilder.epsilon:
+            return regex
+
+        return f'{regex}{other}'
+
+    @staticmethod 
+    def regex_star(regex):
+        if regex is None or regex is GrammarBuilder.epsilon:
+            return regex
+
+        return f'({regex})*'
+
+    @staticmethod
+    def regexp_from_automaton(automaton):
+        """
+        Build the  regular expresion for
+        a NFA
+        """
+        states = list(automaton)
+        states_index = {state: i for i, state in enumerate(states)}
+        n = len(states)
+
+        R = [[[None for k in range(n + 1)] for j in range(n)] for i in range(n)]
+
+        for i in range(n):
+            R[i][i][0] = GrammarBuilder.epsilon
+
+        for i, state in enumerate(states):
+            for symbol, transitions in state.transitions.items():
+                for state2 in transitions:
+                    j = states_index[state2]
+                    R[i][j][0] = GrammarBuilder.regex_union(R[i][j][0], symbol)
+
+        for k in range(n):
+            for i in range(n):
+                for j in range(n):
+                    R[i][j][k + 1] = GrammarBuilder.regex_union(R[i][j][k], GrammarBuilder.regex_concat(R[i][k][k], GrammarBuilder.regex_concat(GrammarBuilder.regex_star(R[k][k][k]), R[k][j][k])))
+
+        e = None
+        for i in range(n):                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
+            if states[i].final:
+                e = GrammarBuilder.regex_union(e, R[0][i][n])
+        return e

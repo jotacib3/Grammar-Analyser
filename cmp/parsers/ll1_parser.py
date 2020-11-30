@@ -33,38 +33,39 @@ def build_LL1_table(G, firsts, follows):
     # parsing table is ready!!!
     return conflict, M
 
-def metodo_predictivo_no_recursivo(G, M=None, firsts=None, follows=None):
-    
-    # checking table...
-    if M is None:
-        if firsts is None:
-            firsts = compute_firsts(G)
-        if follows is None:
-            follows = compute_follows(G, firsts)
-        _, M = build_LL1_table(G, firsts, follows)   
-   
-    def parser(w):       
+def metodo_predictivo_no_recursivo(G, M, firsts, follows):       
+    # parser construction...
+    def parser(w):
+        # w ends with $ (G.EOF)
+        # init:
         stack = [G.startSymbol]
         cursor = 0
-        output= []        
+        output = []
         
-        while len(stack) > 0:           
+        # parsing w...
+        while len(stack) > 0: 
             top = stack.pop()
-            a = w[cursor]          
+            a = w[cursor]
             
             if top.IsTerminal:
-                if top != a:
+                if top == a:
+                    cursor += 1
+                else:
                     st.error(f"La cadena {w} no pertenece al lenguaje generado por la gramática:\n{G}\nSe esperaba {top} en la posición {cursor} y en su lugar está {a} ")
-                    return output
-                cursor += 1
-                
-            else:              
-                production = M[top,a][0]
+                    return None
+            else:
+                try:
+                    production = M[top,a][0]
+                except KeyError:
+                    st.error(f"La cadena {w} no pertenece al lenguaje generado por la gramática:\n{G}\n")
+                    return None
                 alpha = production.Right
                 output.append(production)               
                 for i in range(len(alpha) - 1, -1, -1):
                     stack.append(alpha[i])
-
-        return output 
+        
+        # left parse is ready!!!
+        return output
     
+    # parser is ready!!!
     return parser

@@ -1,7 +1,7 @@
 from cmp.parsers.shift_reduce_parser import ShiftReduceParser, Item
 from cmp.parsers.firsts_follows import compute_firsts, compute_follows
-from cmp.automata import State
-from cmp.parsers.LR0_parser import build_LR0_automaton
+from cmp.automata import State, lr0_formatter
+from cmp.parsers.lr0_parser import build_LR0_automaton
 
 class SLR1Parser(ShiftReduceParser):
 
@@ -9,7 +9,7 @@ class SLR1Parser(ShiftReduceParser):
         G = self.G.AugmentedGrammar(True)
         firsts = compute_firsts(G)
         follows = compute_follows(G, firsts)       
-        automaton = build_LR0_automaton(G).to_deterministic()
+        automaton = build_LR0_automaton(G).to_deterministic(lr0_formatter)
         for i, node in enumerate(automaton):
             if self.verbose: print(i, node)
             node.idx = i

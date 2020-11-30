@@ -1,4 +1,6 @@
+from cmp.automata import State
 import json
+import uuid
 
 class Symbol(object):
     
@@ -457,6 +459,29 @@ class Grammar():
         else:
             return self.copy()
     #endchange
+
+    def IsTerminalAndNonTerminal(self, body):
+        if len(body) != 2:
+            return False
+
+        s1, s2 = body 
+
+        return s1 in self.terminals and s2 in self.nonTerminals
+
+    def IsTerminal(self, body):
+        if len(body) != 1:
+            return False
+
+        s, = body
+
+        return s in self.terminals
+
+    def IsEpsilon(self, head, body):
+        if len(body) != 1:
+            return False
+
+        # return head is self.startSymbol and s is self.Epsilon
+        return False   
 
 class Item:
 

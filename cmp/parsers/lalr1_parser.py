@@ -1,8 +1,8 @@
 from cmp.parsers.shift_reduce_parser import Item, ShiftReduceParser
 from cmp.pycompiler import Grammar, Production, Symbol, Sentence
 from cmp.parsers.firsts_follows import compute_firsts, compute_follows
-from cmp.parsers.LR1_parser import expand, closure_lr1, goto_lr1, compress, build_LR1_automaton
-from cmp.parsers.LR0_parser import build_LR0_automaton
+from cmp.parsers.lr1_parser import expand, closure_lr1, goto_lr1, compress, build_LR1_automaton
+from cmp.parsers.lr0_parser import build_LR0_automaton
 from cmp.utils import ContainerSet
 from cmp.automata import State, multiline_formatter
 
@@ -16,7 +16,7 @@ class LALR1_DummyParser(ShiftReduceParser):
         centers = {}
 
         for i, node in enumerate(automaton):
-            
+            node.idx = i
             try:
                 same_center = centers[node_centers(node)]
                 centers[node_centers(node)] = State(compress(node.state.union(same_center.state)), True)
