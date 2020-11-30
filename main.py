@@ -145,7 +145,7 @@ with st.beta_container():
                     printDerivationTree(metodo_predictivo_no_recursivo(G, TableLL1, firsts, follows), 'left', words)
 
                 # LR(0)
-                st.subheader('LR(0) Analisis')
+                st.subheader('Análisis LR(0)')
                 parser = None
                 try:        
                     parserLR0 = LR0Parser(G)
